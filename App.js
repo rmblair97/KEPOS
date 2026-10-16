@@ -123,6 +123,37 @@ const WebText = React.forwardRef(function WebText({ onTextLayout, onLayout, ...r
 });
 const Text = Platform.OS === 'web' ? WebText : RNText;
 
+// ---- Web card pagers (Feed, Today's 3, card detail) ----
+// react-native-web turns pagingEnabled into snapping on the list's direct children (not each card)
+// and ignores snapToInterval, so cards would scroll freely. On web each card cell snaps itself
+// with CSS scroll-snap instead. Mounting dozens of full cards at once is also slow in a browser,
+// so only cards within 2 of the one on screen are real; the rest are empty placeholders of the
+// same height (scroll positions stay exact). None of this runs on native.
+const WEB_SNAP_ITEM = { scrollSnapAlign: 'start', scrollSnapStop: 'always' };
+
+function webSnapItem(node) {
+  return Platform.OS === 'web' ? <View style={WEB_SNAP_ITEM}>{node}</View> : node;
+}
+
+// Props that switch a card FlatList to CSS snapping on web (snapOn=false leaves snapping off).
+function webPagerListProps(snapOn) {
+  if (Platform.OS !== 'web') return {};
+  return { pagingEnabled: false, style: { flex: 1, ...(snapOn ? { scrollSnapType: 'y mandatory' } : null) } };
+}
+
+// Tracks which card is on screen. onScroll is only meaningful on web.
+function useWebPager(listHeight) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const activeRef = useRef(0);
+  const setActive = useCallback((idx) => {
+    if (idx !== activeRef.current) { activeRef.current = idx; setActiveIndex(idx); }
+  }, []);
+  const onScroll = useCallback((e) => {
+    setActive(Math.round(e.nativeEvent.contentOffset.y / Math.max(1, listHeight)));
+  }, [listHeight, setActive]);
+  return { activeIndex, setActive, onScroll };
+}
+
 let cachedVoiceId;
 async function getBestVoiceId() {
   if (cachedVoiceId !== undefined) return cachedVoiceId;
@@ -2457,6 +2488,7 @@ function FeedScreen({ category, onBack, backLabel = 'Back' }) {
   // previous card underneath it.
   const [listHeight, setListHeight] = useState(CARD_HEIGHT);
   const { handleViewableItemsChanged, toggleSave, isSaved, onPageChange } = useCardActivity(userId);
+  const webPager = useWebPager(listHeight);
 
   useEffect(() => {
     (async () => {
@@ -2510,15 +2542,21 @@ function FeedScreen({ category, onBack, backLabel = 'Back' }) {
           decelerationRate="fast"
           onViewableItemsChanged={handleViewableItemsChanged}
           viewabilityConfig={{ itemVisiblePercentThreshold: 80 }}
-          renderItem={({ item }) => (
-            <ConceptCard
-              concept={item}
-              saved={isSaved(item.id)}
-              onToggleSave={() => toggleSave(item)}
-              onPageScrollChange={setOuterScrollEnabled}
-              onPageChange={onPageChange}
-              cardHeight={listHeight}
-            />
+          {...webPagerListProps(true)}
+          {...(Platform.OS === 'web' ? { onScroll: webPager.onScroll, scrollEventThrottle: 16, extraData: webPager.activeIndex, initialNumToRender: concepts.length, maxToRenderPerBatch: concepts.length, windowSize: concepts.length * 2 + 1, removeClippedSubviews: false } : {})}
+          renderItem={({ item, index }) => webSnapItem(
+            Platform.OS === 'web' && Math.abs(index - webPager.activeIndex) > 2 ? (
+              <View style={{ height: listHeight }} />
+            ) : (
+              <ConceptCard
+                concept={item}
+                saved={isSaved(item.id)}
+                onToggleSave={() => toggleSave(item)}
+                onPageScrollChange={setOuterScrollEnabled}
+                onPageChange={onPageChange}
+                cardHeight={listHeight}
+              />
+            )
           )}
         />
       )}
@@ -2623,7 +2661,8 @@ function DailyThreeScreen({ onBack, backLabel = 'Back' }) {
         decelerationRate="fast"
         onViewableItemsChanged={handleViewableItemsChanged}
         viewabilityConfig={{ itemVisiblePercentThreshold: 80 }}
-        renderItem={({ item }) => (
+        {...webPagerListProps(true)}
+        renderItem={({ item }) => webSnapItem(
           <ConceptCard
             concept={item}
             saved={isSaved(item.id)}
@@ -3493,11 +3532,13 @@ function CardDetailScreen({ conceptIds, initialId, onBack, backLabel = 'Library'
   // so snapping stays off until the jump has stuck, and the jump is re-applied for a moment if the
   // position isn't where it should be. Native keeps pagingEnabled on from the start, unchanged.
   const offsetRef = useRef(0);
+  const webPager = useWebPager(listHeight);
   const [snapReady, setSnapReady] = useState(Platform.OS !== 'web');
   const listHeightRef = useRef(listHeight);
   listHeightRef.current = listHeight;
   useEffect(() => {
     if (Platform.OS !== 'web' || !heightMeasured || concepts.length === 0) return undefined;
+    webPager.setActive(initialIndex);
     if (initialIndex <= 0) { setSnapReady(true); return undefined; }
     const timers = [0, 60, 150, 300, 600].map((ms) => setTimeout(() => {
       const target = initialIndex * listHeightRef.current;
@@ -3565,23 +3606,32 @@ function CardDetailScreen({ conceptIds, initialId, onBack, backLabel = 'Library'
           setTimeout(() => listRef.current?.scrollToIndex({ index, animated: false }), 50);
         }}
         scrollEnabled={outerScrollEnabled}
-        pagingEnabled={snapReady}
-        {...(Platform.OS === 'web' ? { onScroll: (e) => { offsetRef.current = e.nativeEvent.contentOffset.y; }, scrollEventThrottle: 16 } : {})}
+        pagingEnabled
         bounces={false}
         showsVerticalScrollIndicator={false}
         snapToInterval={listHeight}
         decelerationRate="fast"
         onViewableItemsChanged={handleViewableItemsChanged}
         viewabilityConfig={{ itemVisiblePercentThreshold: 80 }}
-        renderItem={({ item }) => (
-          <ConceptCard
-            concept={item}
-            saved={isSaved(item.id)}
-            onToggleSave={() => toggleSave(item)}
-            onPageScrollChange={setOuterScrollEnabled}
-            onPageChange={onPageChange}
-            cardHeight={listHeight}
-          />
+        {...webPagerListProps(snapReady)}
+        {...(Platform.OS === 'web' ? {
+          onScroll: (e) => { offsetRef.current = e.nativeEvent.contentOffset.y; webPager.onScroll(e); },
+          scrollEventThrottle: 16,
+          extraData: webPager.activeIndex,
+        } : {})}
+        renderItem={({ item, index }) => webSnapItem(
+          Platform.OS === 'web' && Math.abs(index - webPager.activeIndex) > 2 ? (
+            <View style={{ height: listHeight }} />
+          ) : (
+            <ConceptCard
+              concept={item}
+              saved={isSaved(item.id)}
+              onToggleSave={() => toggleSave(item)}
+              onPageScrollChange={setOuterScrollEnabled}
+              onPageChange={onPageChange}
+              cardHeight={listHeight}
+            />
+          )
         )}
       />
       )}
