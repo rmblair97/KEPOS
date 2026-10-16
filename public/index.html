@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+    <!-- No viewport-fit=cover: the app has no web safe-area handling, so the page stays clear of the notch and home bar -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <title>Kepos</title>
+    <meta name="description" content="Think deeper. Grow closer." />
+
+    <!-- Installable web app (PWA). Paths are relative so it also works hosted in a sub-folder. -->
+    <link rel="manifest" href="./manifest.json" />
+    <meta name="theme-color" content="#0E0F12" />
+    <meta name="application-name" content="Kepos" />
+
+    <!-- iPhone / iPad: full-screen launch from the home screen, dark status bar, icon and name -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <meta name="apple-mobile-web-app-title" content="Kepos" />
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="48x48" href="./icons/favicon-48.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png" />
+
+    <style id="expo-reset">
+      /* Same reset Expo's default page uses, plus the app's own background so there is never a white flash. */
+      html, body { height: 100%; background-color: #0E0F12; }
+      body { overflow: hidden; margin: 0; }
+      #root { display: flex; height: 100%; flex: 1; background-color: #0E0F12; }
+    </style>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+    <script>
+      // Register the (cache-nothing) service worker so Chrome/Android offers the real install prompt.
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () {
+          navigator.serviceWorker.register('./sw.js').catch(function () {});
+        });
+      }
+    </script>
+  </body>
+</html>

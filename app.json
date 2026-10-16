@@ -1,0 +1,36 @@
+{
+  "expo": {
+    "name": "Kepos",
+    "slug": "snack-0d02fed5-2b8f-4580-a60f-120ca1fcfb86",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/kepos-app-icon-1024.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/kepos-favicon-196.png",
+      "name": "Kepos",
+      "shortName": "Kepos",
+      "description": "Think deeper. Grow closer.",
+      "backgroundColor": "#0E0F12",
+      "themeColor": "#0E0F12"
+    }
+  }
+}

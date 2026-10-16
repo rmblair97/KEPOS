@@ -1,0 +1,40 @@
+{
+  "license": "0BSD",
+  "main": "index.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "export:web": "expo export --platform web"
+  },
+  "dependencies": {
+    "expo": "~55.0.31",
+    "expo-status-bar": "~55.0.6",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "react-native": "0.83.10",
+    "react-native-web": "~0.21.0",
+    "@expo/metro-runtime": "~55.0.12",
+    "react-native-gesture-handler": "~2.30.0",
+    "expo-av": "~16.0.8",
+    "expo-blur": "~55.0.18",
+    "expo-font": "~55.0.8",
+    "expo-asset": "~55.0.20",
+    "expo-audio": "~55.0.18",
+    "expo-speech": "~55.0.18",
+    "expo-clipboard": "~55.0.17",
+    "@expo/vector-icons": "^15.0.2",
+    "@opentelemetry/api": "^1.0.0",
+    "react-native-paper": "4.9.2",
+    "expo-linear-gradient": "~55.0.18",
+    "@supabase/supabase-js": "^2.45.0",
+    "@expo-google-fonts/inter": "*",
+    "@expo-google-fonts/cinzel": "*",
+    "react-native-url-polyfill": "*",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "react-native-view-shot": "4.0.3",
+    "expo-sharing": "~55.0.24"
+  },
+  "private": true
+}
