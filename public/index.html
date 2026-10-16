@@ -5,6 +5,8 @@
     <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
     <!-- No viewport-fit=cover: the app has no web safe-area handling, so the page stays clear of the notch and home bar -->
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <!-- Idle-callback scheduling can starve while the page is busy scrolling, which stalled long lists after their first 10 rows. Using the timer-based fallback instead. -->
+    <script>window.requestIdleCallback = undefined; window.cancelIdleCallback = undefined;</script>
     <title>Kepos</title>
     <meta name="description" content="Think deeper. Grow closer." />
 

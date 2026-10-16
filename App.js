@@ -3535,6 +3535,9 @@ function CardDetailScreen({ conceptIds, initialId, onBack, backLabel = 'Library'
         data={concepts}
         keyExtractor={(item) => item.id}
         initialScrollIndex={initialIndex > 0 ? initialIndex : undefined}
+        // Web only: render every card up front so the jump to the tapped card lands exactly on it,
+        // instead of landing among cards the list has not created yet.
+        {...(Platform.OS === 'web' ? { initialNumToRender: concepts.length, maxToRenderPerBatch: concepts.length, windowSize: concepts.length * 2 + 1, removeClippedSubviews: false } : {})}
         getItemLayout={(data, i) => ({ length: listHeight, offset: listHeight * i, index: i })}
         onScrollToIndexFailed={({ index }) => {
           setTimeout(() => listRef.current?.scrollToIndex({ index, animated: false }), 50);
@@ -5241,6 +5244,7 @@ function LearnScreen({ focused, onOpenFeed, onSelectCard }) {
       <FlatList
         contentContainerStyle={styles.tabListContent}
         data={searching ? filtered : []}
+        {...(Platform.OS === 'web' ? { initialNumToRender: Math.max(filtered.length, 10), maxToRenderPerBatch: Math.max(filtered.length, 10) } : {})}
         keyExtractor={(item) => item.id}
         onScroll={onScroll}
         scrollEventThrottle={16}
