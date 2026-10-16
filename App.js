@@ -3488,6 +3488,28 @@ function CardDetailScreen({ conceptIds, initialId, onBack, backLabel = 'Library'
 
   const initialIndex = Math.max(0, concepts.findIndex((c) => c.id === initialId));
 
+  // Web only: put the list on the tapped card reliably. Scroll-snap (what pagingEnabled becomes on
+  // web) can pull a programmatic jump back to the first cards while the cards are still laying out,
+  // so snapping stays off until the jump has stuck, and the jump is re-applied for a moment if the
+  // position isn't where it should be. Native keeps pagingEnabled on from the start, unchanged.
+  const offsetRef = useRef(0);
+  const [snapReady, setSnapReady] = useState(Platform.OS !== 'web');
+  const listHeightRef = useRef(listHeight);
+  listHeightRef.current = listHeight;
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !heightMeasured || concepts.length === 0) return undefined;
+    if (initialIndex <= 0) { setSnapReady(true); return undefined; }
+    const timers = [0, 60, 150, 300, 600].map((ms) => setTimeout(() => {
+      const target = initialIndex * listHeightRef.current;
+      if (listRef.current && Math.abs(offsetRef.current - target) > 2) {
+        listRef.current.scrollToOffset({ offset: target, animated: false });
+      }
+    }, ms));
+    timers.push(setTimeout(() => setSnapReady(true), 900));
+    return () => timers.forEach(clearTimeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [heightMeasured, concepts.length]);
+
   const header = <ScreenHeader title="" backLabel={backLabel} onBack={onBack} collapsed={false} />;
 
   if (loading) {
@@ -3543,7 +3565,8 @@ function CardDetailScreen({ conceptIds, initialId, onBack, backLabel = 'Library'
           setTimeout(() => listRef.current?.scrollToIndex({ index, animated: false }), 50);
         }}
         scrollEnabled={outerScrollEnabled}
-        pagingEnabled
+        pagingEnabled={snapReady}
+        {...(Platform.OS === 'web' ? { onScroll: (e) => { offsetRef.current = e.nativeEvent.contentOffset.y; }, scrollEventThrottle: 16 } : {})}
         bounces={false}
         showsVerticalScrollIndicator={false}
         snapToInterval={listHeight}
