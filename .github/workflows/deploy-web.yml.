@@ -1,0 +1,51 @@
+name: Deploy Kepos web
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Set the web address folder for GitHub Pages
+        run: |
+          node -e "
+          const fs = require('fs');
+          const app = JSON.parse(fs.readFileSync('app.json', 'utf8'));
+          const repo = process.env.GITHUB_REPOSITORY.split('/')[1];
+          const base = repo.endsWith('.github.io') ? '' : '/' + repo;
+          app.expo.experiments = Object.assign({}, app.expo.experiments, { baseUrl: base });
+          fs.writeFileSync('app.json', JSON.stringify(app, null, 2));
+          "
+      - run: npm install --legacy-peer-deps
+      - run: npx expo export --platform web
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
