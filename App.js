@@ -1303,7 +1303,7 @@ function NoteEditorScreen({ visible, concept, userId, initialNoteId, onClose, on
     currentStatus === 'retry' ? "Couldn't save, will retry" : '';
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={handleClose}>
+    <Modal visible={visible} animationType="slide" transparent={Platform.OS === 'web'} onRequestClose={handleClose}>
       <LinearGradient colors={['#0E0F12', '#0E0F12', '#1D1F24']} locations={[0, 0.85, 1]} style={{ flex: 1 }}>
         <SafeAreaView style={{ flex: 1 }}>
           <View style={styles.noteTopBar}>
@@ -1726,7 +1726,7 @@ function ExplainItBackScreen({ visible, concept, existingConversation, userId, o
   };
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" transparent={Platform.OS === 'web'} onRequestClose={onClose}>
       <LinearGradient colors={['#0E0F12', '#0E0F12', '#1D1F24']} locations={[0, 0.85, 1]} style={{ flex: 1 }}>
         <SafeAreaView style={{ flex: 1 }}>
           <ScreenHeader title="Explain it back" backLabel="Back" onBack={onClose} collapsed={false} />
@@ -2024,7 +2024,7 @@ function AskAgoraChat({ visible, mode, concept, discussionQuestion, existingConv
   const inputDisabled = sending || !!limitReached || debateEnded;
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" transparent={Platform.OS === 'web'} onRequestClose={onClose}>
       <LinearGradient colors={['#0E0F12', '#0E0F12', '#1D1F24']} locations={[0, 0.85, 1]} style={{ flex: 1 }}>
         <SafeAreaView style={{ flex: 1 }}>
           <View style={styles.askHeaderBar}>
@@ -6977,7 +6977,7 @@ categoryTile: { width: '48%', borderRadius: RADIUS.md, paddingVertical: SPACING.
   noteViewCardText: { color: COLORS.primary, fontSize: TYPE.caption, fontWeight: '600' },
 
   // Note editor — full-screen (A1)
-  noteTopBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACING.sm, paddingTop: 52, paddingBottom: SPACING.sm },
+  noteTopBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACING.sm, paddingTop: Platform.OS === 'web' ? 12 : 52, paddingBottom: SPACING.sm },
   noteMenuButton: { paddingHorizontal: 10, paddingVertical: 8 },
   noteMenuButtonText: { color: COLORS.primary, fontSize: 20, fontWeight: '700', letterSpacing: 1 },
   noteDoneText: { color: COLORS.primary, fontSize: TYPE.body, fontWeight: '700' },
@@ -7077,9 +7077,11 @@ categoryTile: { width: '48%', borderRadius: RADIUS.md, paddingVertical: SPACING.
   // Ask Agora — conversation screen
   // Positioned exactly like the rest of the app's floating back chevrons (styles.backButton:
   // top 60), instead of sitting in normal flow right under the notch/status bar.
-  askHeaderBar: { position: 'absolute', top: 52, left: 20, right: 20, zIndex: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  askHeaderBack: { padding: 4 },
-  askHeaderTitleBlock: { paddingHorizontal: SPACING.md, paddingTop: 70, paddingBottom: SPACING.sm },
+  // In normal flow (not absolutely positioned) so it can never overlap the title below it. Native gets its top
+  // space from the SafeAreaView; web has no safe-area inset, so it gets a little padding instead.
+  askHeaderBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: SPACING.md, paddingTop: Platform.OS === 'web' ? 12 : SPACING.xs, minHeight: 48 },
+  askHeaderBack: { minWidth: 44, minHeight: 44, justifyContent: 'center' },
+  askHeaderTitleBlock: { paddingHorizontal: SPACING.md, paddingTop: SPACING.xs, paddingBottom: SPACING.sm },
   askHeaderTitle: { color: COLORS.textPrimary, fontFamily: 'Cinzel_600SemiBold', fontSize: TYPE.subtitle },
   askHeaderMode: { color: COLORS.textTertiary, fontSize: TYPE.caption, marginTop: 1 },
   askEndDebateText: { color: COLORS.primary, fontSize: TYPE.caption, fontWeight: '700' },
