@@ -2,13 +2,18 @@ import 'react-native-url-polyfill/auto';
 import React, { useState, useCallback, useEffect, useRef, useMemo, useContext, useImperativeHandle } from 'react';
 import {
   View, Text as RNText, StyleSheet, Pressable, Dimensions,
-  FlatList, ActivityIndicator, SafeAreaView, ScrollView, TextInput, Animated, PanResponder,
+  FlatList, ActivityIndicator, ScrollView, TextInput, Animated, PanResponder,
   Modal, KeyboardAvoidingView, Platform, Keyboard, AppState, Alert as RNAlert, Share,
+  // Inside full-screen pop-ups (note editor, debate, Explain it back) React Native's own SafeAreaView is the one that
+  // reliably applies the notch spacing; the safe-area library one (used for the main app below) did not there.
+  SafeAreaView as RNSafeAreaView,
 } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import * as Font from 'expo-font';
 import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
+// The safe-area SafeAreaView works on Android too (React Native's own only works on iOS), and reports the real notch / status bar / home-bar insets.
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
 import * as Speech from 'expo-speech';
@@ -20,6 +25,10 @@ import { Image } from 'react-native';
 import { useFonts, Cinzel_700Bold, Cinzel_600SemiBold } from '@expo-google-fonts/cinzel';
 import { Inter_400Regular, Inter_600SemiBold } from '@expo-google-fonts/inter';
 import { BlurView } from 'expo-blur';
+
+// The app's main screens: the safe-area library's version on Android (React Native's own does nothing there), and
+// React Native's own on iPhone, which is the version that was already working. (Web has no insets either way.)
+const RootSafeArea = Platform.OS === 'android' ? SafeAreaView : RNSafeAreaView;
 
 
 // =====================================================================================
@@ -121,7 +130,14 @@ const WebText = React.forwardRef(function WebText({ onTextLayout, onLayout, ...r
   }, [flat, onTextLayout, measure]);
   return <RNText {...rest} ref={setRef} onLayout={handleLayout} />;
 });
-const Text = Platform.OS === 'web' ? WebText : RNText;
+// Large text: the phone's text-size setting is respected, but capped so fixed-height layouts (cards,
+// tab bar, buttons) can't be broken by the very largest accessibility sizes. Native only; web is unchanged.
+const MAX_FONT_SCALE = 1.3;
+const CARD_MAX_FONT_SCALE = 1.2; // card body text is measured and paginated, so it is capped a little tighter
+const ScaledText = React.forwardRef(function ScaledText(props, ref) {
+  return <RNText maxFontSizeMultiplier={MAX_FONT_SCALE} {...props} ref={ref} />;
+});
+const Text = Platform.OS === 'web' ? WebText : ScaledText;
 
 // ---- Web card pagers (Feed, Today's 3, card detail) ----
 // react-native-web turns pagingEnabled into snapping on the list's direct children (not each card)
@@ -1305,7 +1321,7 @@ function NoteEditorScreen({ visible, concept, userId, initialNoteId, onClose, on
   return (
     <Modal visible={visible} animationType="slide" transparent={Platform.OS === 'web'} onRequestClose={handleClose}>
       <LinearGradient colors={['#0E0F12', '#0E0F12', '#1D1F24']} locations={[0, 0.85, 1]} style={{ flex: 1 }}>
-        <SafeAreaView style={{ flex: 1 }}>
+        <RNSafeAreaView style={{ flex: 1 }}>
           <View style={styles.noteTopBar}>
             <Pressable onPress={handleClose} style={pressableStyle(styles.askHeaderBack)} hitSlop={8}>
               <Ionicons name="chevron-back" size={22} color={COLORS.primary} />
@@ -1405,7 +1421,7 @@ function NoteEditorScreen({ visible, concept, userId, initialNoteId, onClose, on
             )}
             {!!saveStatusText && <Text style={styles.noteSaveStatus}>{saveStatusText}</Text>}
           </KeyboardAvoidingView>
-        </SafeAreaView>
+        </RNSafeAreaView>
       </LinearGradient>
     </Modal>
   );
@@ -1469,7 +1485,7 @@ async function fetchAllConversations(userId) {
   if (error) return { error };
   const conceptIds = Array.from(new Set((data || []).map((c) => c.concept_id)));
   if (conceptIds.length === 0) return { conversations: [] };
-  const { data: concepts, error: cErr } = await supabase.from('concepts').select('id, title, category').in('id', conceptIds);
+  const { data: concepts, error: cErr } = await supabase.from('concepts').select('id, title, category, hook').in('id', conceptIds);
   if (cErr) return { error: cErr };
   const byId = new Map((concepts || []).map((c) => [c.id, c]));
   const conversations = (data || []).map((c) => ({ ...c, concept: byId.get(c.concept_id) })).filter((c) => c.concept);
@@ -1728,7 +1744,7 @@ function ExplainItBackScreen({ visible, concept, existingConversation, userId, o
   return (
     <Modal visible={visible} animationType="slide" transparent={Platform.OS === 'web'} onRequestClose={onClose}>
       <LinearGradient colors={['#0E0F12', '#0E0F12', '#1D1F24']} locations={[0, 0.85, 1]} style={{ flex: 1 }}>
-        <SafeAreaView style={{ flex: 1 }}>
+        <RNSafeAreaView style={{ flex: 1 }}>
           <ScreenHeader title="Explain it back" backLabel="Back" onBack={onClose} collapsed={false} />
           <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <ScrollView contentContainerStyle={styles.explainContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
@@ -1831,7 +1847,7 @@ function ExplainItBackScreen({ visible, concept, existingConversation, userId, o
               )}
             </ScrollView>
           </KeyboardAvoidingView>
-        </SafeAreaView>
+        </RNSafeAreaView>
       </LinearGradient>
 
       <NoteEditorScreen
@@ -1840,7 +1856,7 @@ function ExplainItBackScreen({ visible, concept, existingConversation, userId, o
         userId={userId}
         initialNoteId={savedNoteId}
         onClose={() => setNoteEditorVisible(false)}
-        onOpenCard={() => setNoteEditorVisible(false)}
+        onOpenCard={() => { setNoteEditorVisible(false); handleSeeCard(); }}
         onNoteChanged={onNoteChanged}
       />
     </Modal>
@@ -1858,7 +1874,7 @@ function AskAgoraConversation(props) {
 // and calls the ask-agora edge function via supabase.functions.invoke, which sends the current
 // session automatically so the function can verify who's asking. Pass `existingConversation`
 // (a full ai_conversations row) to reopen a past one instead of starting fresh — see B3/B4.
-function AskAgoraChat({ visible, mode, concept, discussionQuestion, existingConversation, userId, onClose, onNoteChanged }) {
+function AskAgoraChat({ visible, mode, concept, discussionQuestion, existingConversation, userId, onClose, onNoteChanged, onSeeCard }) {
   const [messages, setMessages] = useState([]);
   const [conversationId, setConversationId] = useState(null);
   const [input, setInput] = useState('');
@@ -2026,7 +2042,7 @@ function AskAgoraChat({ visible, mode, concept, discussionQuestion, existingConv
   return (
     <Modal visible={visible} animationType="slide" transparent={Platform.OS === 'web'} onRequestClose={onClose}>
       <LinearGradient colors={['#0E0F12', '#0E0F12', '#1D1F24']} locations={[0, 0.85, 1]} style={{ flex: 1 }}>
-        <SafeAreaView style={{ flex: 1 }}>
+        <RNSafeAreaView style={{ flex: 1 }}>
           <View style={styles.askHeaderBar}>
             <Pressable onPress={onClose} style={pressableStyle(styles.askHeaderBack)} hitSlop={8}>
               <Ionicons name="chevron-back" size={22} color={COLORS.primary} />
@@ -2128,7 +2144,7 @@ function AskAgoraChat({ visible, mode, concept, discussionQuestion, existingConv
               </View>
             )}
           </KeyboardAvoidingView>
-        </SafeAreaView>
+        </RNSafeAreaView>
       </LinearGradient>
 
       <NoteEditorScreen
@@ -2137,7 +2153,8 @@ function AskAgoraChat({ visible, mode, concept, discussionQuestion, existingConv
         userId={userId}
         initialNoteId={savedNoteId}
         onClose={() => setNoteEditorVisible(false)}
-        onOpenCard={() => setNoteEditorVisible(false)}
+        // "View card": leave the note and the conversation and show the card (when this was opened from a card, closing is enough: you are already on it).
+        onOpenCard={() => { setNoteEditorVisible(false); onClose(); if (onSeeCard) onSeeCard(); }}
         onNoteChanged={onNoteChanged}
       />
     </Modal>
@@ -2305,7 +2322,7 @@ function ConceptCard({ concept, saved, onToggleSave, onPageScrollChange, cardHei
             {CATEGORY_LABELS[concept.category] ?? concept.category}
           </Text>
         </View>
-        <Text style={styles.title}>{concept.title}</Text>
+        <Text style={styles.title} maxFontSizeMultiplier={CARD_MAX_FONT_SCALE}>{concept.title}</Text>
       </View>
 
       <View
@@ -2325,9 +2342,10 @@ function ConceptCard({ concept, saved, onToggleSave, onPageScrollChange, cardHei
             <View key={page} style={{ width, height: pageAreaHeight != null ? pageAreaHeight : resolvedCardHeight }}>
               {page === 'main' && (
                 <View style={styles.cardPageContent}>
-                  <Text style={styles.hook} onTextLayout={onHookTextLayout}>{concept.hook}</Text>
+                  <Text style={styles.hook} maxFontSizeMultiplier={CARD_MAX_FONT_SCALE} onTextLayout={onHookTextLayout}>{concept.hook}</Text>
                   <Text
                     style={styles.explanation}
+                    maxFontSizeMultiplier={CARD_MAX_FONT_SCALE}
                     onTextLayout={(e) => {
                       // Only capture the FIRST measurement, taken while this Text is still
                       // showing the full unsplit explanation (the fallback before pagination
@@ -2344,13 +2362,13 @@ function ConceptCard({ concept, saved, onToggleSave, onPageScrollChange, cardHei
               )}
               {page.startsWith('exp-') && (
                 <View style={styles.cardPageContent}>
-                  <Text style={styles.explanation}>{explanationPages[Number(page.slice(4))]}</Text>
+                  <Text style={styles.explanation} maxFontSizeMultiplier={CARD_MAX_FONT_SCALE}>{explanationPages[Number(page.slice(4))]}</Text>
                 </View>
               )}
               {page === 'example' && (
                 <View style={styles.cardPageContent}>
                   <Text style={styles.pageHeading}>For example</Text>
-                  <Text style={styles.exampleLarge}>{concept.example}</Text>
+                  <Text style={styles.exampleLarge} maxFontSizeMultiplier={CARD_MAX_FONT_SCALE}>{concept.example}</Text>
                 </View>
               )}
               {page === 'angle' && (
@@ -2362,14 +2380,14 @@ function ConceptCard({ concept, saved, onToggleSave, onPageScrollChange, cardHei
                       }}
                     >
                       <Text style={styles.pageHeading}>For example</Text>
-                      <Text style={styles.exampleLarge}>{concept.example}</Text>
+                      <Text style={styles.exampleLarge} maxFontSizeMultiplier={CARD_MAX_FONT_SCALE}>{concept.example}</Text>
                       <Text style={styles.pageHeading}>In conversation</Text>
-                      <Text style={styles.angleLarge}>{concept.conversation_angle}</Text>
+                      <Text style={styles.angleLarge} maxFontSizeMultiplier={CARD_MAX_FONT_SCALE}>{concept.conversation_angle}</Text>
                     </View>
                   ) : (
                     <>
                       <Text style={styles.pageHeading}>In conversation</Text>
-                      <Text style={styles.angleLarge}>{concept.conversation_angle}</Text>
+                      <Text style={styles.angleLarge} maxFontSizeMultiplier={CARD_MAX_FONT_SCALE}>{concept.conversation_angle}</Text>
                     </>
                   )}
                 </View>
@@ -2381,7 +2399,7 @@ function ConceptCard({ concept, saved, onToggleSave, onPageScrollChange, cardHei
                     .filter(Boolean)
                     .map((q, i) => (
                       <View key={i} style={styles.debateQuestionBlock}>
-                        <Text style={[styles.discussionTextLarge, { marginBottom: 6 }]}>• {q}</Text>
+                        <Text style={[styles.discussionTextLarge, { marginBottom: 6 }]} maxFontSizeMultiplier={CARD_MAX_FONT_SCALE}>• {q}</Text>
                         <Pressable
                           onPress={() => { setDebateSeedQuestion(q); setActiveAskMode('debate'); }}
                           style={pressableStyle(styles.debateLinkWrap)}
@@ -6668,9 +6686,9 @@ export default function App() {
 
   if (!fontsLoaded) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#0E0F12', justifyContent: 'center', alignItems: 'center' }}>
+      <RootSafeArea style={{ flex: 1, backgroundColor: '#0E0F12', justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator color="#B8860B" size="large" />
-      </SafeAreaView>
+      </RootSafeArea>
     );
   }
 
@@ -6781,10 +6799,11 @@ export default function App() {
   const paneStyle = (visible) => [styles.tabPane, !visible && styles.tabPaneHidden];
 
   return (
+    <SafeAreaProvider>
     <GestureHandlerRootView style={Platform.OS === 'web' ? { flex: 1, maxWidth: WEB_MAX_WIDTH, marginLeft: 'auto', marginRight: 'auto', backgroundColor: '#0E0F12' } : { flex: 1 }}>
     <UserContext.Provider value={{ userId, authReady, authUser, signOutAndReset, unreadShares }}>
     <NavContext.Provider value={{ openConversationsForConcept, openShareByCode }}>
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#0E0F12' }}>
+      <RootSafeArea style={{ flex: 1, backgroundColor: '#0E0F12' }}>
       {authError && (
         <View style={styles.authErrorBanner} pointerEvents="none">
           <Text style={styles.authErrorText} numberOfLines={3}>Sign-in issue: {authError}</Text>
@@ -6852,10 +6871,11 @@ export default function App() {
       )}
       {Platform.OS === 'web' && <InstallBanner />}
       {stackEmpty && <TabBar active={tab} onNavigate={goTab} libraryDot={unreadShares > 0} />}
-    </SafeAreaView>
+    </RootSafeArea>
     </NavContext.Provider>
     </UserContext.Provider>
     </GestureHandlerRootView>
+    </SafeAreaProvider>
   );
 }
 
@@ -6977,7 +6997,7 @@ categoryTile: { width: '48%', borderRadius: RADIUS.md, paddingVertical: SPACING.
   noteViewCardText: { color: COLORS.primary, fontSize: TYPE.caption, fontWeight: '600' },
 
   // Note editor — full-screen (A1)
-  noteTopBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACING.sm, paddingTop: Platform.OS === 'web' ? 12 : 52, paddingBottom: SPACING.sm },
+  noteTopBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACING.sm, paddingTop: Platform.OS === 'web' ? 12 : SPACING.sm, paddingBottom: SPACING.sm }, // the SafeAreaView above already supplies the notch inset
   noteMenuButton: { paddingHorizontal: 10, paddingVertical: 8 },
   noteMenuButtonText: { color: COLORS.primary, fontSize: 20, fontWeight: '700', letterSpacing: 1 },
   noteDoneText: { color: COLORS.primary, fontSize: TYPE.body, fontWeight: '700' },
