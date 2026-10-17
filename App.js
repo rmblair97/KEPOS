@@ -6800,7 +6800,7 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-    <GestureHandlerRootView style={Platform.OS === 'web' ? { flex: 1, maxWidth: WEB_MAX_WIDTH, marginLeft: 'auto', marginRight: 'auto', backgroundColor: '#0E0F12' } : { flex: 1 }}>
+    <GestureHandlerRootView style={Platform.OS === 'web' ? { flex: 1, width: '100%', maxWidth: WEB_MAX_WIDTH, alignSelf: 'center', backgroundColor: '#0E0F12' } : { flex: 1 }}>
     <UserContext.Provider value={{ userId, authReady, authUser, signOutAndReset, unreadShares }}>
     <NavContext.Provider value={{ openConversationsForConcept, openShareByCode }}>
       <RootSafeArea style={{ flex: 1, backgroundColor: '#0E0F12' }}>
