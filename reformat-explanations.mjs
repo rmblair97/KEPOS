@@ -70,7 +70,7 @@ Opening: do not begin with a definition such as "It's a puzzle about..." or "X i
 
 Myths: do not repeat popular half-truths. For example "every cell in your body is replaced every seven years" is false for many cells. If the current text hedges a claim, keep the hedge or drop the claim.
 
-Accuracy: do not state who coined a phrase, who argued what, where an idea came from, dates, numbers, or sweeping words like "usually" and "always" unless the current explanation already says so or you are certain. If unsure, leave it out and use a different true insight, such as the mechanism or a consequence.
+Accuracy: do not state who coined a phrase, who argued what, where an idea came from, dates, numbers, or sweeping words like "usually" and "always" unless the current explanation already says so or you are certain. If unsure, leave it out and use a different true insight, such as the mechanism or a consequence. When in doubt, cut: a shorter card with fewer claims beats a longer one with a shaky claim. Do not give timescales, percentages or counts (for example how often the body's cells are replaced) unless the current explanation already does, and do not describe what a thinker "believed" or "saw as the mark of" something beyond what the current explanation says.
 
 Keep the card's meaning. Do not contradict the card's example, conversation angle or questions, and do not copy them into the explanation.`;
 
@@ -169,7 +169,7 @@ function hardProblem(text) {
 
 async function rewrite(card, feedback) {
   const fb = feedback
-    ? `\n\nYOUR PREVIOUS ATTEMPT (rejected):\n${feedback.prev}\n\nPROBLEMS TO FIX (keep what was good, change only what is needed):\n${feedback.issues.map((i) => `- ${i}`).join("\n")}`
+    ? `\n\nYOUR PREVIOUS ATTEMPT (rejected):\n${feedback.prev}\n\nPROBLEMS TO FIX. Make the smallest edit that fixes each one: delete or soften the flagged wording. Do NOT add any new facts, attributions, numbers or timescales while fixing. If a paragraph was only filler, cut it. Keep everything else as it is:\n${feedback.issues.map((i) => `- ${i}`).join("\n")}`
     : "";
   const prompt = `${STYLE}
 
