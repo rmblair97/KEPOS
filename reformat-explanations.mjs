@@ -66,7 +66,7 @@ Tone: confident and precise. Short sentences. A memorable line beats a complete 
 
 Complete the idea: if the concept has a famous second half, counter-case or twist that people need to understand it, include it. Examples: Ship of Theseus needs BOTH the ship with replaced planks AND Hobbes' twist (the discarded planks reassembled into a second ship: which one is the original?); Monty Hall needs the walk-through of why switching wins 2/3 of the time. Use your knowledge of the concept, not just the current text, but only for things you are certain are established.
 
-Opening: do not begin with a definition such as "It's a puzzle about..." or "X is the idea that...". Open with the concrete situation, claim or consequence, in plain words.
+Opening: the first sentences must set up the idea in plain words: say what it asks or what situation it poses (for a paradox or thought experiment, the question it forces; for an effect or bias, what actually happens). Do not repeat the hook. Avoid only the textbook formula ("X is the idea that...", "It's a puzzle about..."); do not skip the setup in order to be punchy.
 
 Myths: do not repeat popular half-truths. For example "every cell in your body is replaced every seven years" is false for many cells. If the current text hedges a claim, keep the hedge or drop the claim.
 
@@ -205,7 +205,7 @@ function localIssues(card, text) {
   if (text.length > 2400) issues.push(`too long (${text.length} characters); cut anything not needed to understand the idea`);
   if (card.explanation && text.length > card.explanation.length * 3) issues.push("more than 3x longer than the original; cut it back");
   if (/^(it'?s|it is|this is|there'?s)\s+(a|an|the)\s+(puzzle|paradox|idea|concept|effect|bias|theory|principle|phenomenon|thought experiment)/i.test(text)) {
-    issues.push("opens with a definition; open with the concrete situation or claim instead");
+    issues.push("opens with a textbook definition; say plainly what the idea asks or what actually happens instead");
   }
   return issues;
 }
