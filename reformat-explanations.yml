@@ -1,0 +1,102 @@
+name: Reformat explanations
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "What to do"
+        type: choice
+        options: [preview, draft, apply, restore]
+        default: preview
+      source_run_id:
+        description: "apply: Run ID of the draft run. restore: Run ID of the apply run to undo."
+        required: false
+      approve_flagged:
+        description: "apply only - none, all, or title words separated by commas"
+        required: false
+        default: none
+      also_title:
+        description: "preview only - optional title word for the third card"
+        required: false
+
+jobs:
+  reformat:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Set up a clean folder with just the one dependency
+        run: |
+          mkdir run
+          cp reformat-explanations.mjs run/
+          cd run
+          npm init -y
+          npm install @supabase/supabase-js@2
+
+      - name: Fetch the draft (apply only)
+        if: inputs.mode == 'apply'
+        uses: actions/download-artifact@v4
+        with:
+          name: reformat-files
+          path: run
+          run-id: ${{ inputs.source_run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Fetch the backup (restore only)
+        if: inputs.mode == 'restore'
+        uses: actions/download-artifact@v4
+        with:
+          name: explanation-backup
+          path: run
+          run-id: ${{ inputs.source_run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Run
+        working-directory: run
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          MODE: ${{ inputs.mode }}
+          ALSO_TITLE: ${{ inputs.also_title }}
+          APPROVE_FLAGGED: ${{ inputs.approve_flagged }}
+        run: |
+          if [ "$MODE" = "restore" ]; then
+            node reformat-explanations.mjs restore "$(ls explanation-backup-*.json | head -1)"
+          elif [ "$MODE" = "preview" ] && [ -n "$ALSO_TITLE" ]; then
+            node reformat-explanations.mjs preview --also "$ALSO_TITLE"
+          else
+            node reformat-explanations.mjs "$MODE"
+          fi
+
+      - name: Show the review on the Summary page
+        if: always() && inputs.mode == 'draft'
+        run: |
+          if [ -f run/reformat-review.md ]; then head -c 1000000 run/reformat-review.md >> "$GITHUB_STEP_SUMMARY"; fi
+
+      - name: Keep the draft files
+        if: always() && inputs.mode == 'draft'
+        uses: actions/upload-artifact@v4
+        with:
+          name: reformat-files
+          path: |
+            run/reformat-draft.json
+            run/reformat-review.md
+            run/draft-backup-*.json
+          if-no-files-found: ignore
+
+      - name: Keep the backup
+        if: always() && inputs.mode == 'apply'
+        uses: actions/upload-artifact@v4
+        with:
+          name: explanation-backup
+          path: run/explanation-backup-*.json
+          if-no-files-found: ignore
