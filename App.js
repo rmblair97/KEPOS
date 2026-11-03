@@ -431,7 +431,8 @@ const CARD_PAGE_TOP_PADDING = 4;
 const CARD_PAGE_BOTTOM_BUFFER = 24;
 // Off-state colour for the card's bottom action icons (on = COLORS.primary).
 const CARD_ACTION_OFF = 'rgba(255,255,255,0.6)';
-const EXPLANATION_LINE_HEIGHT = 24;
+const EXPLANATION_LINE_HEIGHT = 27;
+const EXPLANATION_PARAGRAPH_GAP = 22; // about one blank line between explanation paragraphs
 const HOOK_BLOCK_MARGIN = 24;
 const PAGE_SIZE = 20;
 
@@ -629,25 +630,46 @@ function calcStreak(dates) {
   return streak;
 }
 
-function splitExplanationIntoPages(lines, firstPageHeight, otherPageHeight, fallbackLineHeight) {
-  if (!lines || lines.length === 0) return [''];
+// An explanation is stored as paragraphs separated by blank lines. Single line breaks inside a
+// paragraph are treated as spaces so the measured lines stay in step with what is rendered.
+function splitExplanationParagraphs(text) {
+  const paragraphs = String(text || '')
+    .split(/\n\s*\n/)
+    .map((p) => p.replace(/\s*\n\s*/g, ' ').trim())
+    .filter(Boolean);
+  return paragraphs.length ? paragraphs : [''];
+}
+
+// paragraphLines: one array of measured lines per paragraph. Returns pages, each an array of
+// paragraph strings. Pages break at real line boundaries, and the gap between paragraphs counts
+// towards the page height.
+function splitExplanationIntoPages(paragraphLines, firstPageHeight, otherPageHeight, fallbackLineHeight, paragraphGap) {
+  const joinLines = (ls) => ls.map((l) => l.text.trimEnd()).join(' ').trim();
   const pages = [];
-  let current = [];
-  let currentHeight = 0;
+  let page = [];
+  let pageHeight = 0;
   let limit = firstPageHeight;
-  for (const line of lines) {
-    const lineHeight = line.height || fallbackLineHeight;
-    if (current.length > 0 && currentHeight + lineHeight > limit) {
-      pages.push(current);
-      current = [];
-      currentHeight = 0;
-      limit = otherPageHeight;
+  for (const lines of paragraphLines) {
+    let buf = [];
+    for (const line of lines) {
+      const lineHeight = line.height || fallbackLineHeight;
+      let gap = buf.length === 0 && page.length > 0 ? paragraphGap : 0;
+      if ((page.length > 0 || buf.length > 0) && pageHeight + gap + lineHeight > limit) {
+        if (buf.length) page.push(joinLines(buf));
+        buf = [];
+        pages.push(page);
+        page = [];
+        pageHeight = 0;
+        limit = otherPageHeight;
+        gap = 0;
+      }
+      pageHeight += gap + lineHeight;
+      buf.push(line);
     }
-    current.push(line);
-    currentHeight += lineHeight;
+    if (buf.length) page.push(joinLines(buf));
   }
-  if (current.length > 0) pages.push(current);
-  return pages.map((pageLines) => pageLines.map((l) => l.text.trimEnd()).join(' ').trim());
+  if (page.length > 0) pages.push(page);
+  return pages.length ? pages : [['']];
 }
 
 // ---- Per-user card activity: views, time spent, page depth, saves ----
@@ -2168,7 +2190,7 @@ function ConceptCard({ concept, saved, onToggleSave, onPageScrollChange, cardHei
   const [pageIndex, setPageIndex] = useState(0);
   const [pageAreaHeight, setPageAreaHeight] = useState(null);
   const [hookHeight, setHookHeight] = useState(null);
-  const [explanationLines, setExplanationLines] = useState(null);
+  const [paragraphLines, setParagraphLines] = useState(null);
   const [exampleAngleHeight, setExampleAngleHeight] = useState(null);
   const [noteEditorVisible, setNoteEditorVisible] = useState(false);
   // Bumped after a note is loaded/saved/deleted to force a re-read of getNotesForConcept()
@@ -2240,15 +2262,48 @@ function ConceptCard({ concept, saved, onToggleSave, onPageScrollChange, cardHei
   // Explanation text is measured via the visible Text's own onTextLayout (first firing only,
   // see below) and sliced at real rendered line boundaries, then spread across as many
   // horizontal pages as it needs. Until measured, show it unsplit so there's no blank first frame.
+  // Each paragraph is its own Text, measured separately; pages are arrays of paragraph strings.
+  const explanationParagraphs = useMemo(() => splitExplanationParagraphs(concept.explanation), [concept.explanation]);
+  const allParagraphsMeasured = !!paragraphLines && explanationParagraphs.every((_, i) => !!paragraphLines[i]);
   const explanationPages = useMemo(() => {
-    if (!explanationLines || pageAreaHeight == null || hookHeight == null) {
-      return [concept.explanation || ''];
+    if (!allParagraphsMeasured || pageAreaHeight == null || hookHeight == null) {
+      return [explanationParagraphs];
     }
     const usableHeight = pageAreaHeight - CARD_PAGE_TOP_PADDING - CARD_PAGE_BOTTOM_BUFFER;
     const firstPageHeight = Math.max(EXPLANATION_LINE_HEIGHT, usableHeight - (hookHeight + HOOK_BLOCK_MARGIN));
     const otherPageHeight = Math.max(EXPLANATION_LINE_HEIGHT, usableHeight);
-    return splitExplanationIntoPages(explanationLines, firstPageHeight, otherPageHeight, EXPLANATION_LINE_HEIGHT);
-  }, [explanationLines, pageAreaHeight, hookHeight, concept.explanation]);
+    return splitExplanationIntoPages(
+      explanationParagraphs.map((_, i) => paragraphLines[i]),
+      firstPageHeight,
+      otherPageHeight,
+      EXPLANATION_LINE_HEIGHT,
+      EXPLANATION_PARAGRAPH_GAP + 1
+    );
+  }, [allParagraphsMeasured, paragraphLines, explanationParagraphs, pageAreaHeight, hookHeight]);
+
+  const renderExplanationParagraphs = (paragraphs, measure) =>
+    paragraphs.map((p, j) => (
+      <Text
+        key={j}
+        style={[styles.explanation, j < paragraphs.length - 1 && { marginBottom: EXPLANATION_PARAGRAPH_GAP }]}
+        maxFontSizeMultiplier={CARD_MAX_FONT_SCALE}
+        onTextLayout={measure ? (e) => {
+          // Only capture the FIRST measurement of each paragraph, taken while it is still
+          // showing its full unsplit text (the fallback before pagination kicks in). Once a
+          // page shows shorter slices, later firings reflect those slices, not the full
+          // paragraph — ignore them.
+          const lines = e.nativeEvent.lines;
+          setParagraphLines((prev) => {
+            if (prev && prev[j]) return prev;
+            const next = prev ? prev.slice() : [];
+            next[j] = lines;
+            return next;
+          });
+        } : undefined}
+      >
+        {p}
+      </Text>
+    ));
 
   const pages = ['main'];
   for (let i = 1; i < explanationPages.length; i++) pages.push(`exp-${i}`);
@@ -2343,26 +2398,12 @@ function ConceptCard({ concept, saved, onToggleSave, onPageScrollChange, cardHei
               {page === 'main' && (
                 <View style={styles.cardPageContent}>
                   <Text style={styles.hook} maxFontSizeMultiplier={CARD_MAX_FONT_SCALE} onTextLayout={onHookTextLayout}>{concept.hook}</Text>
-                  <Text
-                    style={styles.explanation}
-                    maxFontSizeMultiplier={CARD_MAX_FONT_SCALE}
-                    onTextLayout={(e) => {
-                      // Only capture the FIRST measurement, taken while this Text is still
-                      // showing the full unsplit explanation (the fallback before pagination
-                      // kicks in). Once explanationPages[0] becomes a shorter slice, later
-                      // onTextLayout firings reflect that slice, not the full text — ignore them.
-                      if (explanationLines == null) {
-                        setExplanationLines(e.nativeEvent.lines);
-                      }
-                    }}
-                  >
-                    {explanationPages[0]}
-                  </Text>
+                  {renderExplanationParagraphs(explanationPages[0], true)}
                 </View>
               )}
               {page.startsWith('exp-') && (
                 <View style={styles.cardPageContent}>
-                  <Text style={styles.explanation} maxFontSizeMultiplier={CARD_MAX_FONT_SCALE}>{explanationPages[Number(page.slice(4))]}</Text>
+                  {renderExplanationParagraphs(explanationPages[Number(page.slice(4))], false)}
                 </View>
               )}
               {page === 'example' && (
@@ -6897,10 +6938,11 @@ hook: { color: 'rgba(255,255,255,0.85)', fontSize: 18, lineHeight: 26.01, margin
    explanation: {
   color: 'rgba(255,255,255,0.75)',
   fontSize: 16,
-  lineHeight: 24.01,
+  lineHeight: 27.01,
   marginBottom: 20,
   paddingBottom: 1,
   width: CARD_CONTENT_WIDTH,
+  maxWidth: 600,
 },
 
   angleLabel: { color: COLORS.textTertiary, fontSize: TYPE.micro, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 },
