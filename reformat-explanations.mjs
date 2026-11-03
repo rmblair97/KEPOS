@@ -57,6 +57,12 @@ Length: let the concept decide. Default is tight: 2-3 short paragraphs. Go longe
 
 Tone: confident and precise. Short sentences. A memorable line beats a complete one. The reader should think "huh, I didn't know that". Avoid hedging, throat-clearing ("It is interesting to note that...") and dictionary-style definitions.
 
+Complete the idea: if the concept has a famous second half, counter-case or twist that people need to understand it, include it. Examples: Ship of Theseus needs BOTH the ship with replaced planks AND Hobbes' twist (the discarded planks reassembled into a second ship: which one is the original?); Monty Hall needs the walk-through of why switching wins 2/3 of the time. Use your knowledge of the concept, not just the current text, but only for things you are certain are established.
+
+Opening: do not begin with a definition such as "It's a puzzle about..." or "X is the idea that...". Open with the concrete situation, claim or consequence, in plain words.
+
+Myths: do not repeat popular half-truths. For example "every cell in your body is replaced every seven years" is false for many cells. If the current text hedges a claim, keep the hedge or drop the claim.
+
 Accuracy: do not state who coined a phrase, where an idea came from, dates or numbers unless the current explanation already says so or you are certain. If unsure, leave it out and use a different true insight, such as the mechanism or a consequence.
 
 Keep the card's meaning. Do not contradict the card's example, conversation angle or questions, and do not copy them into the explanation.`;
