@@ -57,6 +57,8 @@ Length: let the concept decide. Default is tight: 2-3 short paragraphs. Go longe
 
 Tone: confident and precise. Short sentences. A memorable line beats a complete one. The reader should think "huh, I didn't know that". Avoid hedging, throat-clearing ("It is interesting to note that...") and dictionary-style definitions.
 
+Accuracy: do not state who coined a phrase, where an idea came from, dates or numbers unless the current explanation already says so or you are certain. If unsure, leave it out and use a different true insight, such as the mechanism or a consequence.
+
 Keep the card's meaning. Do not contradict the card's example, conversation angle or questions, and do not copy them into the explanation.`;
 
 const tool = {
@@ -146,13 +148,13 @@ async function preview() {
 
   const picks = [];
   for (const t of PREVIEW_TITLES) {
-    const c = cards.find((x) => x.title?.trim().toLowerCase() === t);
+    const c = cards.find((x) => x.title?.toLowerCase().includes(t));
     if (c) picks.push(c);
-    else console.log(`(No card titled "${t}" found, skipping)`);
+    else console.log(`(No card with "${t}" in its title found, skipping)`);
   }
   const alsoTitle = option("also")?.trim().toLowerCase();
   const extra = alsoTitle
-    ? cards.find((x) => x.title?.trim().toLowerCase() === alsoTitle)
+    ? cards.find((x) => !picks.includes(x) && x.title?.toLowerCase().includes(alsoTitle))
     : cards.find((x) => !picks.includes(x) && x.explanation);
   if (extra && picks.length < 3) picks.push(extra);
 
