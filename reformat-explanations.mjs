@@ -226,7 +226,7 @@ ${text}
 Report an issue ONLY for these:
 - unsupported_claim: a specific attribution (who coined, argued or said something), date, number, statistic, or a sweeping word such as "usually", "always", "most" in the REWRITE that is NOT in the original, the example or the conversation angle, AND that you are not certain is true and well established.
 - false_or_myth: anything in the rewrite you believe is false, contested, overstated or a popular myth, even if the original said it.
-- lost_content: something important in the ORIGINAL that the rewrite dropped, changing what the card teaches.
+- lost_content: a core step, lesson or key side of the idea in the ORIGINAL that the rewrite dropped, so the card now teaches something different or less. Do NOT flag a dropped statistic, figure, timeframe, example detail or minor framing phrase: cutting those is acceptable and often right.
 - filler: a paragraph that adds nothing the reader could not have guessed.
 - no_insight: the rewrite as a whole only restates the obvious and delivers nothing a reader could not have guessed.
 
